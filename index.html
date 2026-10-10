@@ -119,7 +119,7 @@
                 if (audioCtx.state === 'suspended') {
                     audioCtx.resume();
                 }
-
+                
                 if ('speechSynthesis' in window) {
                     const unlockMsg = new SpeechSynthesisUtterance('');
                     unlockMsg.volume = 0; 
@@ -175,7 +175,6 @@
                 triggerCall();
             });
 
-            // Tiếng chuông được làm ngắn lại (tổng 0.8s) để không lấn át tiếng đọc
             function playDingDongFast() {
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -221,25 +220,35 @@
                 
                 statusLabel.innerHTML = `<span class="text-green-600">Đang phát loa...</span>`;
 
-                // 1. Phát chuông ngay lập tức
+                // 1. Khởi động chuông (Mất khoảng 0.8s)
                 playDingDongFast();
 
-                // 2. Kích hoạt giọng đọc NGAY LẬP TỨC (Không dùng setTimeout nữa)
                 if ('speechSynthesis' in window) {
-                    // Thêm dấu phẩy nhỏ đầu câu để máy lấy đà đọc mượt hơn cùng lúc tiếng chuông
-                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                    utterance.lang = 'vi-VN'; 
-                    utterance.rate = 0.9; 
-                    utterance.pitch = 1;
+                    // CÁCH GIẢI QUYẾT: Dùng Hàng Đợi (Queue)
                     
-                    utterance.onend = () => { resetState(); };
-                    utterance.onerror = (event) => {
+                    // Câu 1: Câu đọc câm để câu giờ (thay cho setTimeout)
+                    const delayUtt = new SpeechSynthesisUtterance("đang phát chuông báo");
+                    delayUtt.volume = 0; // Tắt tiếng hoàn toàn
+                    delayUtt.rate = 0.8; // Đọc chậm để tạo độ trễ khoảng 1 giây
+                    
+                    // Câu 2: Câu đọc thật
+                    const mainUtt = new SpeechSynthesisUtterance(textToSpeak);
+                    mainUtt.lang = 'vi-VN'; 
+                    mainUtt.rate = 0.9; 
+                    mainUtt.pitch = 1;
+                    mainUtt.volume = 1; // Bật tiếng
+                    
+                    mainUtt.onend = () => { resetState(); };
+                    mainUtt.onerror = (event) => {
                         console.error('SpeechSynthesisError:', event);
                         statusLabel.innerHTML = `<span class="text-red-500">Lỗi âm thanh. Thử lại.</span>`;
                         resetState();
                     };
 
-                    window.speechSynthesis.speak(utterance);
+                    // Gửi CẢ HAI cùng một lúc vào hệ thống lúc bạn bấm nút
+                    // iOS nhận lệnh hợp lệ -> Đọc câu 1 câm (trong lúc chuông kêu) -> Đọc câu 2 phát âm thanh chuẩn.
+                    window.speechSynthesis.speak(delayUtt);
+                    window.speechSynthesis.speak(mainUtt);
                 } else {
                     alert("Trình duyệt không hỗ trợ đọc văn bản.");
                     resetState();
