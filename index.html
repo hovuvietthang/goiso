@@ -35,7 +35,6 @@
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col border border-gray-100 max-h-full">
             
             <div class="p-4 md:p-6 flex flex-col gap-4 overflow-y-auto">
-                <!-- Tùy chỉnh câu gọi -->
                 <div class="space-y-1">
                     <label for="prefixText" class="block text-xs font-semibold text-gray-700">Câu nhắc (Có thể sửa):</label>
                     <input type="text" id="prefixText" 
@@ -44,7 +43,6 @@
                         placeholder="VD: Mời bệnh nhân, số...">
                 </div>
 
-                <!-- Hiển thị số lớn -->
                 <div id="displayArea" class="bg-gray-50 rounded-xl py-6 md:py-8 text-center transition-colors duration-300 border-2 border-dashed border-gray-200 shrink-0">
                     <p class="text-gray-500 text-sm font-medium mb-1">Đang gọi số</p>
                     <div id="numberDisplay" class="text-6xl md:text-7xl font-black text-blue-600 tabular-nums tracking-tighter leading-none">
@@ -52,7 +50,6 @@
                     </div>
                 </div>
 
-                <!-- Nhập số trực tiếp -->
                 <div class="flex justify-center shrink-0 mt-2">
                     <div class="relative w-40">
                         <input type="number" id="numberInput" 
@@ -62,7 +59,6 @@
                     </div>
                 </div>
 
-                <!-- Cụm nút điều khiển -->
                 <div class="grid grid-cols-3 gap-2 md:gap-3 shrink-0 mt-1">
                     <button id="btnPrev" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition-colors shadow-sm active:scale-95 flex flex-col items-center justify-center gap-0.5">
                         <span class="text-xl leading-none">-</span>
@@ -80,7 +76,6 @@
                     </button>
                 </div>
 
-                <!-- Trạng thái -->
                 <div id="status" class="text-center text-xs font-medium text-gray-500 shrink-0">
                     Trạng thái loa: Sẵn sàng
                 </div>
@@ -89,7 +84,7 @@
         </div>
     </main>
 
-    <!-- Footer Giới thiệu Phần mềm (Có Link) -->
+    <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 py-2 shrink-0">
         <a href="https://lamthangphat.com" target="_blank" rel="noopener noreferrer" class="block text-center px-4 hover:opacity-75 transition-opacity">
             <p class="text-gray-700 text-xs font-medium">
@@ -115,7 +110,6 @@
             let audioCtx = null;
             let isIOSUnlocked = false;
 
-            // --- IOS UNLOCKER ---
             function unlockAudioAndSpeech() {
                 if (isIOSUnlocked) return;
                 
@@ -139,7 +133,6 @@
 
             document.addEventListener('touchstart', unlockAudioAndSpeech, { once: true });
             document.addEventListener('click', unlockAudioAndSpeech, { once: true });
-            // --------------------
 
             if (localStorage.getItem('savedPrefix')) {
                 prefixText.value = localStorage.getItem('savedPrefix');
@@ -182,7 +175,8 @@
                 triggerCall();
             });
 
-            function playDingDong(callback) {
+            // Tiếng chuông được làm ngắn lại (tổng 0.8s) để không lấn át tiếng đọc
+            function playDingDongFast() {
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 }
@@ -198,23 +192,21 @@
                 osc1.frequency.setValueAtTime(784, audioCtx.currentTime);
                 gain1.gain.setValueAtTime(0, audioCtx.currentTime);
                 gain1.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
-                gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
                 osc1.start(audioCtx.currentTime);
-                osc1.stop(audioCtx.currentTime + 0.5);
+                osc1.stop(audioCtx.currentTime + 0.3);
 
                 const osc2 = audioCtx.createOscillator();
                 const gain2 = audioCtx.createGain();
                 osc2.connect(gain2);
                 gain2.connect(audioCtx.destination);
                 osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.5);
-                gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.5);
-                gain2.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.55);
-                gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
-                osc2.start(audioCtx.currentTime + 0.5);
-                osc2.stop(audioCtx.currentTime + 1.5);
-
-                setTimeout(callback, 1200);
+                osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.3);
+                gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.3);
+                gain2.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.35);
+                gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+                osc2.start(audioCtx.currentTime + 0.3);
+                osc2.stop(audioCtx.currentTime + 0.8);
             }
 
             function triggerCall() {
@@ -227,28 +219,31 @@
                 const prefix = prefixText.value.trim() || "Mời bệnh nhân, số";
                 const textToSpeak = `${prefix} ${number}`;
                 
-                statusLabel.innerHTML = `<span class="text-blue-600">Đang phát tiếng...</span>`;
+                statusLabel.innerHTML = `<span class="text-green-600">Đang phát loa...</span>`;
 
-                const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                utterance.lang = 'vi-VN'; 
-                utterance.rate = 0.9; 
-                utterance.pitch = 1;
-                utterance.onend = () => { resetState(); };
-                utterance.onerror = (event) => {
-                    console.error('SpeechSynthesisError:', event);
-                    statusLabel.innerHTML = `<span class="text-red-500">Lỗi âm thanh. Thử lại.</span>`;
-                    resetState();
-                };
+                // 1. Phát chuông ngay lập tức
+                playDingDongFast();
 
-                playDingDong(() => {
-                    statusLabel.innerHTML = `<span class="text-green-600">Đang đọc số...</span>`;
-                    if ('speechSynthesis' in window) {
-                        window.speechSynthesis.speak(utterance);
-                    } else {
-                        alert("Trình duyệt không hỗ trợ đọc văn bản.");
+                // 2. Kích hoạt giọng đọc NGAY LẬP TỨC (Không dùng setTimeout nữa)
+                if ('speechSynthesis' in window) {
+                    // Thêm dấu phẩy nhỏ đầu câu để máy lấy đà đọc mượt hơn cùng lúc tiếng chuông
+                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                    utterance.lang = 'vi-VN'; 
+                    utterance.rate = 0.9; 
+                    utterance.pitch = 1;
+                    
+                    utterance.onend = () => { resetState(); };
+                    utterance.onerror = (event) => {
+                        console.error('SpeechSynthesisError:', event);
+                        statusLabel.innerHTML = `<span class="text-red-500">Lỗi âm thanh. Thử lại.</span>`;
                         resetState();
-                    }
-                });
+                    };
+
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert("Trình duyệt không hỗ trợ đọc văn bản.");
+                    resetState();
+                }
             }
 
             function setControlsState(disabled) {
