@@ -109,6 +109,19 @@
 
             let audioCtx = null;
             let isIOSUnlocked = false;
+            let availableVoices = [];
+
+            // --- TẢI DANH SÁCH GIỌNG NÓI TRƯỚC (RẤT QUAN TRỌNG TRÊN MÁY TÍNH) ---
+            function loadVoices() {
+                availableVoices = window.speechSynthesis.getVoices();
+            }
+            if ('speechSynthesis' in window) {
+                loadVoices();
+                if (speechSynthesis.onvoiceschanged !== undefined) {
+                    speechSynthesis.onvoiceschanged = loadVoices;
+                }
+            }
+            // -----------------------------------------------------------------
 
             function unlockAudioAndSpeech() {
                 if (isIOSUnlocked) return;
@@ -220,23 +233,32 @@
                 
                 statusLabel.innerHTML = `<span class="text-green-600">Đang phát loa...</span>`;
 
-                // 1. Khởi động chuông (Mất khoảng 0.8s)
                 playDingDongFast();
 
                 if ('speechSynthesis' in window) {
-                    // CÁCH GIẢI QUYẾT: Dùng Hàng Đợi (Queue)
-                    
-                    // Câu 1: Câu đọc câm để câu giờ (thay cho setTimeout)
                     const delayUtt = new SpeechSynthesisUtterance("đang phát chuông báo");
-                    delayUtt.volume = 0; // Tắt tiếng hoàn toàn
-                    delayUtt.rate = 0.8; // Đọc chậm để tạo độ trễ khoảng 1 giây
+                    delayUtt.volume = 0; 
+                    delayUtt.rate = 0.8; 
                     
-                    // Câu 2: Câu đọc thật
                     const mainUtt = new SpeechSynthesisUtterance(textToSpeak);
                     mainUtt.lang = 'vi-VN'; 
                     mainUtt.rate = 0.9; 
                     mainUtt.pitch = 1;
-                    mainUtt.volume = 1; // Bật tiếng
+                    mainUtt.volume = 1; 
+
+                    // --- BỘ LỌC TÌM KIẾM GIỌNG TIẾNG VIỆT ĐÍCH DANH ---
+                    // Trình duyệt (Chrome/Edge) thường lưu tên giọng đọc là "Google Tiếng Việt", "Microsoft An", hoặc có mã "vi-VN"
+                    const viVoice = availableVoices.find(voice => 
+                        voice.lang.includes('vi') || 
+                        voice.lang.includes('VN') || 
+                        voice.name.toLowerCase().includes('vietnamese') || 
+                        voice.name.toLowerCase().includes('an') // Microsoft An
+                    );
+                    
+                    if (viVoice) {
+                        mainUtt.voice = viVoice;
+                    }
+                    // --------------------------------------------------
                     
                     mainUtt.onend = () => { resetState(); };
                     mainUtt.onerror = (event) => {
@@ -245,8 +267,6 @@
                         resetState();
                     };
 
-                    // Gửi CẢ HAI cùng một lúc vào hệ thống lúc bạn bấm nút
-                    // iOS nhận lệnh hợp lệ -> Đọc câu 1 câm (trong lúc chuông kêu) -> Đọc câu 2 phát âm thanh chuẩn.
                     window.speechSynthesis.speak(delayUtt);
                     window.speechSynthesis.speak(mainUtt);
                 } else {
